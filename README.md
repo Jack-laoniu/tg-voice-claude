@@ -104,6 +104,7 @@ The unit assumes the checkout lives at `/home/<user>/tg-voice-claude`; edit
 | `/tts on\|off` | toggle spoken replies for this chat |
 | `/brief on\|off` | reply in plain spoken prose only: one short text message plus the same text as a voice bubble. See [Hands-free with AirPods](#hands-free-with-airpods) |
 | `/lang zh\|en\|ja\|auto` | recognition language for this chat |
+| `/limit <n>` | max characters of a brief reply for this chat, 50 to 1000 |
 | `/cd <path>` | change work dir (resets the session) |
 | `/cancel` | kill the running Claude task |
 

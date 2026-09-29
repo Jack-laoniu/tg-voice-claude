@@ -377,12 +377,13 @@ class ClaudeRunner:
         env["PATH"] = os.path.expanduser("~/.local/bin") + ":" + env.get("PATH", "")
         return env
 
-    def run(self, prompt, session_id, workdir, on_wait=None, brief=False):
+    def run(self, prompt, session_id, workdir, on_wait=None, brief=False,
+            brief_limit=None):
         cfg = self.cfg
         if brief:
             sys_prompt = BRIEF_INSTRUCTION.format(
                 lang=cfg["reply_language"], mark=SPEAK_MARK,
-                limit=cfg["brief_max_chars"],
+                limit=brief_limit or cfg["brief_max_chars"],
                 extra=(" " + cfg["brief_style"]) if cfg["brief_style"] else "")
         else:
             sys_prompt = SPEAK_INSTRUCTION.format(
@@ -468,7 +469,8 @@ Replies come back as text plus a short spoken summary.
 /new        start a fresh Claude session
 /status     session, work dir, settings
 /tts on|off toggle spoken replies
-/brief on|off reply with the one-line summary only (for Siri announce on AirPods)
+/brief on|off reply in short spoken prose only (for Siri announce on AirPods)
+/limit <n>  max characters of a brief reply (50-1000)
 /lang <code>  speech language for recognition (zh, en, ja ...; auto = detect)
 /cd <path>  change work dir (resets the session)
 /cancel     kill the running Claude task
@@ -493,6 +495,7 @@ class Bot:
         c.setdefault("workdir", self.cfg["work_dir"])
         c.setdefault("tts", self.cfg["tts_enabled"])
         c.setdefault("brief", self.cfg["brief_default"])
+        c.setdefault("brief_max_chars", self.cfg["brief_max_chars"])
         c.setdefault("stt_language", self.cfg["stt_language"])
         c.setdefault("total_cost", 0.0)
         return c
@@ -516,7 +519,8 @@ class Bot:
                 f"session:   {c['session_id'] or '(none)'}",
                 f"tts:       {'on' if c['tts'] and self.tts.available else 'off'}"
                 f" ({self.cfg['tts_voice']}, {self.cfg['tts_format']})",
-                f"brief:     {'on' if c['brief'] else 'off'}",
+                f"brief:     {'on' if c['brief'] else 'off'}"
+                f" (limit {c['brief_max_chars']})",
                 f"stt lang:  {c['stt_language'] or 'auto'} ({self.cfg['stt_model']})",
                 f"cost:      ${c['total_cost']:.4f}",
                 f"busy:      {self.busy or '-'}  queued: {self.q.qsize()}",
@@ -531,6 +535,18 @@ class Bot:
                 c["brief"] = arg.lower() == "on"
                 save_state(self.state)
             self.tg.send(chat_id, f"brief {'on' if c['brief'] else 'off'}")
+        elif cmd == "/limit":
+            if arg:
+                try:
+                    n = int(arg)
+                    if not 50 <= n <= 1000:
+                        raise ValueError
+                except ValueError:
+                    self.tg.send(chat_id, "usage: /limit <50-1000>")
+                    return
+                c["brief_max_chars"] = n
+                save_state(self.state)
+            self.tg.send(chat_id, f"brief limit: {c['brief_max_chars']} chars")
         elif cmd == "/lang":
             if arg:
                 c["stt_language"] = "" if arg.lower() == "auto" else arg.lower()
@@ -628,7 +644,7 @@ class Bot:
                 text, c["session_id"], c["workdir"],
                 on_wait=lambda: self.tg.send(
                     chat_id, "waiting for another Claude task to finish..."),
-                brief=bool(c["brief"]))
+                brief=bool(c["brief"]), brief_limit=c["brief_max_chars"])
         finally:
             stop.set()
         elapsed = time.time() - started
