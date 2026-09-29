@@ -215,8 +215,17 @@ class Groq:
         self.cfg = cfg
         self.headers = {"Authorization": "Bearer " + cfg["groq_api_key"]}
 
+    ACCEPTED = ("flac", "mp3", "mp4", "mpeg", "mpga", "m4a", "ogg", "opus",
+                "wav", "webm")
+
     def transcribe(self, audio, filename, language=None, translate=False):
         endpoint = "translations" if translate else "transcriptions"
+        # Telegram voice notes arrive as .oga; Groq only accepts the
+        # extensions listed above, so normalise the name before upload.
+        stem, ext = os.path.splitext(filename)
+        ext = ext.lstrip(".").lower()
+        if ext not in self.ACCEPTED:
+            filename = stem + ".ogg"
         ctype = mimetypes.guess_type(filename)[0] or "application/octet-stream"
         fields = {"model": self.cfg["stt_model"], "response_format": "json"}
         if language and not translate:
@@ -523,6 +532,10 @@ class Bot:
             chat_id, msg_id, text, media = self.q.get()
             try:
                 self.process(chat_id, msg_id, text, media)
+            except urllib.error.HTTPError as e:
+                body = e.read().decode("utf-8", "replace")[:300]
+                log(f"worker HTTP {e.code} from {e.url}: {body}")
+                self.tg.send(chat_id, f"error: HTTP {e.code}: {body}")
             except Exception as e:
                 log(f"worker error: {e!r}")
                 self.tg.send(chat_id, f"error: {e!r}")
