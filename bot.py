@@ -54,6 +54,12 @@ SPEAK_INSTRUCTION = (
     "answer in {lang}, at most {limit} characters, no markdown, no code, "
     "no URLs. That line is read aloud to the user.{extra}"
 )
+BRIEF_INSTRUCTION = (
+    "You are being driven by voice from a phone and the user only HEARS your "
+    "reply read aloud by a screen reader. Reply in {lang} with plain spoken "
+    "prose only: no markdown, no headings, no lists, no code, no URLs, no "
+    "emoji, no {mark} marker. At most {limit} characters.{extra}"
+)
 BRIEF_STYLE_DEFAULT = (
     "The user only hears the spoken line, nothing else. Write it like a "
     "thinking partner talking: state the point, offer two or three concrete "
@@ -323,6 +329,17 @@ _URL = re.compile(r"https?://\S+")
 _MD = re.compile(r"[*_#>|\\]+")
 
 
+def brief_text(text):
+    """Brief mode: Claude was told to answer in spoken prose; drop any stray
+    markdown or a trailing speak-marker line it added anyway."""
+    lines = [ln for ln in text.strip().split("\n")
+             if not ln.strip().startswith(SPEAK_MARK)]
+    clean = _CODE_BLOCK.sub(" ", "\n".join(lines))
+    clean = _INLINE.sub(lambda m: m.group(0).strip("`"), clean)
+    clean = _MD.sub("", clean)
+    return re.sub(r"[ \t]+", " ", clean).strip() or text.strip()
+
+
 def extract_speech(text, max_chars):
     """Split a Claude reply into (display_text, text_to_speak).
 
@@ -362,10 +379,15 @@ class ClaudeRunner:
 
     def run(self, prompt, session_id, workdir, on_wait=None, brief=False):
         cfg = self.cfg
-        sys_prompt = SPEAK_INSTRUCTION.format(
-            lang=cfg["reply_language"], mark=SPEAK_MARK,
-            limit=cfg["brief_max_chars"] if brief else cfg["spoken_max_chars"],
-            extra=(" " + cfg["brief_style"]) if brief and cfg["brief_style"] else "")
+        if brief:
+            sys_prompt = BRIEF_INSTRUCTION.format(
+                lang=cfg["reply_language"], mark=SPEAK_MARK,
+                limit=cfg["brief_max_chars"],
+                extra=(" " + cfg["brief_style"]) if cfg["brief_style"] else "")
+        else:
+            sys_prompt = SPEAK_INSTRUCTION.format(
+                lang=cfg["reply_language"], mark=SPEAK_MARK,
+                limit=cfg["spoken_max_chars"], extra="")
         cmd = [cfg["claude_bin"], "-p", prompt,
                "--output-format", "json",
                "--permission-mode", cfg["permission_mode"],
@@ -620,13 +642,13 @@ class Bot:
         if "error" in res:
             self.tg.send(chat_id, f"⚠️ {res['error']}")
             return
-        display, spoken = extract_speech(res["text"], self.cfg["tts_max_chars"])
-        if c["brief"] and spoken:
-            # one short text message and nothing else: Siri reads it aloud
-            self.tg.send(chat_id, spoken)
+        if c["brief"]:
+            # the whole reply is the spoken text: one plain message, no audio
+            self.tg.send(chat_id, brief_text(res["text"]))
             log(f"chat={chat_id} brief turns={res.get('turns')} "
                 f"cost=${res.get('cost', 0):.4f} elapsed={elapsed:.0f}s")
             return
+        display, spoken = extract_speech(res["text"], self.cfg["tts_max_chars"])
         will_speak = c["tts"] and self.tts.available and spoken
         if spoken and (not will_speak or self.cfg["tts_format"] == "video_note"):
             # no caption on video notes: keep the summary readable in the text

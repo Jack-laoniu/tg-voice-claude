@@ -72,7 +72,7 @@ Edit `config.json`:
 | `echo_transcript` | send the recognised text back before running Claude |
 | `brief_default` | start every chat in brief mode (`/brief` toggles it per chat) |
 | `spoken_max_chars` | length Claude is asked to keep the spoken line under in normal mode (80) |
-| `brief_max_chars` | same in brief mode (300): the spoken line is the whole reply there, so it gets room for a couple of options and a question back |
+| `brief_max_chars` | brief mode (300): Claude is told the whole reply is read aloud and must be plain spoken prose under this length |
 | `brief_style` | extra instruction for brief mode; default asks Claude to talk like a thinking partner: point, two or three directions, one question back |
 
 Run it:
