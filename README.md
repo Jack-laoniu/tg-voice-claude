@@ -68,6 +68,7 @@ Edit `config.json`:
 | `stt_translate` | `true` sends audio to Whisper's translate endpoint and hands Claude English text |
 | `tts_enabled`, `tts_voice`, `tts_rate` | spoken replies. List voices with `edge-tts --list-voices` |
 | `tts_max_chars` | fallback length when Claude did not produce a summary line |
+| `tts_format` | `video_note` (default in the example): a round video message with a waveform, which Telegram **autoplays with sound**. `voice`: a normal voice bubble, tap to play. Both need ffmpeg |
 | `echo_transcript` | send the recognised text back before running Claude |
 
 Run it:
@@ -100,6 +101,15 @@ The unit assumes the checkout lives at `/home/<user>/tg-voice-claude`; edit
 | `/lang zh\|en\|ja\|auto` | recognition language for this chat |
 | `/cd <path>` | change work dir (resets the session) |
 | `/cancel` | kill the running Claude task |
+
+## Autoplay
+
+Telegram never autoplays voice bubbles; the user has to tap. Round video
+messages, however, autoplay with sound as soon as they scroll into view. With
+`tts_format: "video_note"` the bot renders the synthesised speech into a
+384x384 MP4 with a live waveform (ffmpeg, about 0.2 s on one core) and sends it
+with `sendVideoNote`, so the answer starts speaking the moment you open the
+chat. Set `tts_format: "voice"` if you prefer the classic voice bubble.
 
 ## How the spoken summary works
 
@@ -158,6 +168,7 @@ pip install --user edge-tts       # 可选，语音回复用
 - `stt_language` 默认 `zh`，说中文识别最准；`/lang auto` 切自动检测，`/lang en` 说英文
 - `reply_language` 默认 `Chinese`，Claude 用中文回答
 - `tts_voice` 默认 `zh-CN-XiaoxiaoNeural`，其它音色用 `edge-tts --list-voices | grep zh-CN` 看
+- `tts_format` 默认 `video_note`：Telegram 不会自动播放语音气泡，但圆形视频消息进入视野就自动出声，所以 bot 把语音渲染成带波形的圆形视频发出。想要普通语音气泡就改成 `voice`
 
 ### 口播摘要
 

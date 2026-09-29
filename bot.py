@@ -86,6 +86,9 @@ def load_config():
     cfg.setdefault("tts_voice", "zh-CN-XiaoxiaoNeural")
     cfg.setdefault("tts_rate", "+0%")
     cfg.setdefault("tts_max_chars", 400)
+    # "voice": ogg voice bubble (tap to play). "video_note": round video with a
+    # waveform, which Telegram clients autoplay with sound when it scrolls into view.
+    cfg.setdefault("tts_format", "voice")
     cfg.setdefault("ffmpeg_bin", "ffmpeg")
     cfg.setdefault("echo_transcript", True)
     return cfg
@@ -280,6 +283,19 @@ class TTS:
         asyncio.run(_run())
         if not self.ffmpeg:
             return mp3, "audio"
+        if self.cfg["tts_format"] == "video_note":
+            mp4 = os.path.join(tmpdir, "reply.mp4")
+            subprocess.run([self.ffmpeg, "-loglevel", "error", "-y", "-i", mp3,
+                            "-filter_complex",
+                            "[0:a]showwaves=s=384x384:mode=cline:rate=12:"
+                            "colors=0x7FB3FF,format=yuv420p[v]",
+                            "-map", "[v]", "-map", "0:a",
+                            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "34",
+                            "-r", "12", "-c:a", "aac", "-b:a", "48k",
+                            "-shortest", "-t", "60", mp4],
+                           check=True, timeout=120)
+            os.unlink(mp3)
+            return mp4, "video_note"
         ogg = os.path.join(tmpdir, "reply.ogg")
         subprocess.run([self.ffmpeg, "-loglevel", "error", "-y", "-i", mp3,
                         "-c:a", "libopus", "-b:a", "32k", "-vbr", "on",
@@ -582,11 +598,15 @@ class Bot:
             self.tg.send(chat_id, f"⚠️ {res['error']}")
             return
         display, spoken = extract_speech(res["text"], self.cfg["tts_max_chars"])
+        will_speak = c["tts"] and self.tts.available and spoken
+        if spoken and (not will_speak or self.cfg["tts_format"] == "video_note"):
+            # no caption on video notes: keep the summary readable in the text
+            display = f"{display}\n\n{SPEAK_MARK} {spoken}".strip()
         self.tg.send(chat_id, display)
         log(f"chat={chat_id} turns={res.get('turns')} cost=${res.get('cost', 0):.4f} "
             f"elapsed={elapsed:.0f}s")
 
-        if c["tts"] and self.tts.available and spoken:
+        if will_speak:
             self.busy = "speaking"
             stop = threading.Event()
             threading.Thread(target=self._keep_action,
@@ -600,7 +620,10 @@ class Bot:
             finally:
                 stop.set()
             try:
-                if kind == "voice":
+                if kind == "video_note":
+                    self.tg.upload("sendVideoNote", "video_note", path,
+                                   "video/mp4", chat_id=chat_id, length=384)
+                elif kind == "voice":
                     self.tg.upload("sendVoice", "voice", path, "audio/ogg",
                                    chat_id=chat_id, caption=spoken[:1000])
                 else:

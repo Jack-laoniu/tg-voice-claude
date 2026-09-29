@@ -20,6 +20,7 @@
   "tts_voice": "zh-CN-XiaoxiaoNeural",
   "tts_rate": "+0%",
   "tts_max_chars": 400,
+  "tts_format": "video_note",
   "ffmpeg_bin": "ffmpeg",
   "echo_transcript": true
 }
