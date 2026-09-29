@@ -70,6 +70,7 @@ Edit `config.json`:
 | `tts_max_chars` | fallback length when Claude did not produce a summary line |
 | `tts_format` | `video_note` (default in the example): a round video message with a waveform, which Telegram **autoplays with sound**. `voice`: a normal voice bubble, tap to play. Both need ffmpeg |
 | `echo_transcript` | send the recognised text back before running Claude |
+| `brief_default` | start every chat in brief mode (`/brief` toggles it per chat) |
 
 Run it:
 
@@ -98,6 +99,7 @@ The unit assumes the checkout lives at `/home/<user>/tg-voice-claude`; edit
 | `/new` | fresh Claude session |
 | `/status` | session id, work dir, TTS and STT settings, cost so far |
 | `/tts on\|off` | toggle spoken replies for this chat |
+| `/brief on\|off` | reply with the one-line summary only, as text, no audio. See [Hands-free with AirPods](#hands-free-with-airpods) |
 | `/lang zh\|en\|ja\|auto` | recognition language for this chat |
 | `/cd <path>` | change work dir (resets the session) |
 | `/cancel` | kill the running Claude task |
@@ -110,6 +112,25 @@ messages, however, autoplay with sound as soon as they scroll into view. With
 384x384 MP4 with a live waveform (ffmpeg, about 0.2 s on one core) and sends it
 with `sendVideoNote`, so the answer starts speaking the moment you open the
 chat. Set `tts_format: "voice"` if you prefer the classic voice bubble.
+
+## Hands-free with AirPods
+
+Telegram will not autoplay audio from a bot, but on iPhone with AirPods the
+system can do the whole loop for you, no audio files involved:
+
+1. **Hear replies.** iOS Settings → Notifications → Announce Notifications →
+   on, and allow Telegram. In Telegram: Settings → Notifications and Sounds →
+   Announce Messages with Siri. With the phone locked and AirPods in, Siri
+   reads every incoming message from the bot aloud and offers to reply.
+2. **Keep them short.** Send `/brief on` to the bot. From then on each reply
+   is a single short text message (the spoken summary), which is what you want
+   read into your ear. `/brief off` restores full replies plus audio.
+3. **Send by voice.** Add a contact for the bot so Siri can address it:
+   Contacts → new contact → name it something short like "Claude" → add url →
+   set the label to `Telegram` → value `https://t.me/@oid<PEER_ID>` where
+   `<PEER_ID>` is the number before the colon in your bot token. Then say
+   "Hey Siri, message Claude on Telegram" and dictate. Siri's own dictation
+   does the recognition, so this path does not even touch Groq.
 
 ## How the spoken summary works
 
@@ -169,6 +190,14 @@ pip install --user edge-tts       # 可选，语音回复用
 - `reply_language` 默认 `Chinese`，Claude 用中文回答
 - `tts_voice` 默认 `zh-CN-XiaoxiaoNeural`，其它音色用 `edge-tts --list-voices | grep zh-CN` 看
 - `tts_format` 默认 `video_note`：Telegram 不会自动播放语音气泡，但圆形视频消息进入视野就自动出声，所以 bot 把语音渲染成带波形的圆形视频发出。想要普通语音气泡就改成 `voice`
+
+### AirPods 免手模式
+
+Telegram 不会自动播放 bot 发的音频，但 iPhone 配 AirPods 可以让系统把整个循环包掉，完全不碰手机：
+
+1. **听回复**：iOS 设置 → 通知 → 通过 Siri 播报通知 → 打开并允许 Telegram；Telegram 里 设置 → 通知和声音 → 用 Siri 播报消息。锁屏戴着 AirPods 时，bot 的每条消息 Siri 都会读出来，并问你要不要回复。
+2. **让回复短一点**：给 bot 发 `/brief on`，之后每次只回一条短文字（就是口播摘要），Siri 念的就是这一句。`/brief off` 恢复完整回复加语音。
+3. **用 Siri 发消息**：通讯录新建联系人，名字起短一点比如"Claude"，添加 URL，标签改成 `Telegram`，内容填 `https://t.me/@oid<PEER_ID>`，PEER_ID 是 bot token 冒号前面那串数字。然后说"嘿 Siri，用 Telegram 给 Claude 发消息"，直接口述。这条路走的是 Siri 自己的听写，连 Groq 都不经过。
 
 ### 口播摘要
 

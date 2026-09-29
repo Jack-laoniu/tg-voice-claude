@@ -91,6 +91,10 @@ def load_config():
     cfg.setdefault("tts_format", "voice")
     cfg.setdefault("ffmpeg_bin", "ffmpeg")
     cfg.setdefault("echo_transcript", True)
+    # brief mode: send only the one-line spoken summary as text, no audio.
+    # Made for iOS "Announce Messages with Siri" on AirPods: Siri reads every
+    # incoming Telegram message aloud, so a short one is what you want.
+    cfg.setdefault("brief_default", False)
     return cfg
 
 
@@ -432,6 +436,7 @@ Replies come back as text plus a short spoken summary.
 /new        start a fresh Claude session
 /status     session, work dir, settings
 /tts on|off toggle spoken replies
+/brief on|off reply with the one-line summary only (for Siri announce on AirPods)
 /lang <code>  speech language for recognition (zh, en, ja ...; auto = detect)
 /cd <path>  change work dir (resets the session)
 /cancel     kill the running Claude task
@@ -455,6 +460,7 @@ class Bot:
         c.setdefault("session_id", None)
         c.setdefault("workdir", self.cfg["work_dir"])
         c.setdefault("tts", self.cfg["tts_enabled"])
+        c.setdefault("brief", self.cfg["brief_default"])
         c.setdefault("stt_language", self.cfg["stt_language"])
         c.setdefault("total_cost", 0.0)
         return c
@@ -477,7 +483,8 @@ class Bot:
                 f"work dir:  {c['workdir']}",
                 f"session:   {c['session_id'] or '(none)'}",
                 f"tts:       {'on' if c['tts'] and self.tts.available else 'off'}"
-                f" ({self.cfg['tts_voice']})",
+                f" ({self.cfg['tts_voice']}, {self.cfg['tts_format']})",
+                f"brief:     {'on' if c['brief'] else 'off'}",
                 f"stt lang:  {c['stt_language'] or 'auto'} ({self.cfg['stt_model']})",
                 f"cost:      ${c['total_cost']:.4f}",
                 f"busy:      {self.busy or '-'}  queued: {self.q.qsize()}",
@@ -487,6 +494,11 @@ class Bot:
                 c["tts"] = arg.lower() == "on"
                 save_state(self.state)
             self.tg.send(chat_id, f"tts {'on' if c['tts'] else 'off'}")
+        elif cmd == "/brief":
+            if arg.lower() in ("on", "off"):
+                c["brief"] = arg.lower() == "on"
+                save_state(self.state)
+            self.tg.send(chat_id, f"brief {'on' if c['brief'] else 'off'}")
         elif cmd == "/lang":
             if arg:
                 c["stt_language"] = "" if arg.lower() == "auto" else arg.lower()
@@ -598,6 +610,12 @@ class Bot:
             self.tg.send(chat_id, f"⚠️ {res['error']}")
             return
         display, spoken = extract_speech(res["text"], self.cfg["tts_max_chars"])
+        if c["brief"] and spoken:
+            # one short text message and nothing else: Siri reads it aloud
+            self.tg.send(chat_id, spoken)
+            log(f"chat={chat_id} brief turns={res.get('turns')} "
+                f"cost=${res.get('cost', 0):.4f} elapsed={elapsed:.0f}s")
+            return
         will_speak = c["tts"] and self.tts.available and spoken
         if spoken and (not will_speak or self.cfg["tts_format"] == "video_note"):
             # no caption on video notes: keep the summary readable in the text
