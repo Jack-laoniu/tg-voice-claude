@@ -643,8 +643,12 @@ class Bot:
             self.tg.send(chat_id, f"⚠️ {res['error']}")
             return
         if c["brief"]:
-            # the whole reply is the spoken text: one plain message, no audio
-            self.tg.send(chat_id, brief_text(res["text"]))
+            # the whole reply is the spoken text: one plain message, then the
+            # same text as audio so it can also be heard by raise-to-ear or tap
+            spoken = brief_text(res["text"])
+            self.tg.send(chat_id, spoken)
+            if c["tts"] and self.tts.available:
+                self.speak(chat_id, spoken, caption=False)
             log(f"chat={chat_id} brief turns={res.get('turns')} "
                 f"cost=${res.get('cost', 0):.4f} elapsed={elapsed:.0f}s")
             return
@@ -658,37 +662,42 @@ class Bot:
             f"elapsed={elapsed:.0f}s")
 
         if will_speak:
-            self.busy = "speaking"
-            stop = threading.Event()
-            threading.Thread(target=self._keep_action,
-                             args=(chat_id, "record_voice", stop),
-                             daemon=True).start()
+            self.speak(chat_id, spoken)
+
+    def speak(self, chat_id, spoken, caption=True):
+        """Synthesise `spoken` and send it as a voice bubble / video note / mp3."""
+        self.busy = "speaking"
+        stop = threading.Event()
+        threading.Thread(target=self._keep_action,
+                         args=(chat_id, "record_voice", stop),
+                         daemon=True).start()
+        try:
+            path, kind = self.tts.synth(spoken)
+        except Exception as e:
+            log(f"tts failed: {e!r}")
+            return
+        finally:
+            stop.set()
+        try:
+            if kind == "video_note":
+                self.tg.upload("sendVideoNote", "video_note", path,
+                               "video/mp4", chat_id=chat_id, length=384)
+            elif kind == "voice":
+                self.tg.upload("sendVoice", "voice", path, "audio/ogg",
+                               chat_id=chat_id,
+                               caption=spoken[:1000] if caption else None)
+            else:
+                self.tg.upload("sendAudio", "audio", path, "audio/mpeg",
+                               chat_id=chat_id, title="Claude",
+                               caption=spoken[:1000] if caption else None)
+        except urllib.error.HTTPError as e:
+            log(f"send voice failed ({e.code}): {e.read()[:200]}")
+        finally:
             try:
-                path, kind = self.tts.synth(spoken)
-            except Exception as e:
-                log(f"tts failed: {e!r}")
-                return
-            finally:
-                stop.set()
-            try:
-                if kind == "video_note":
-                    self.tg.upload("sendVideoNote", "video_note", path,
-                                   "video/mp4", chat_id=chat_id, length=384)
-                elif kind == "voice":
-                    self.tg.upload("sendVoice", "voice", path, "audio/ogg",
-                                   chat_id=chat_id, caption=spoken[:1000])
-                else:
-                    self.tg.upload("sendAudio", "audio", path, "audio/mpeg",
-                                   chat_id=chat_id, caption=spoken[:1000],
-                                   title="Claude")
-            except urllib.error.HTTPError as e:
-                log(f"send voice failed ({e.code}): {e.read()[:200]}")
-            finally:
-                try:
-                    os.unlink(path)
-                    os.rmdir(os.path.dirname(path))
-                except OSError:
-                    pass
+                os.unlink(path)
+                os.rmdir(os.path.dirname(path))
+            except OSError:
+                pass
 
     # --- main loop
 

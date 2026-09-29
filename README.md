@@ -102,7 +102,7 @@ The unit assumes the checkout lives at `/home/<user>/tg-voice-claude`; edit
 | `/new` | fresh Claude session |
 | `/status` | session id, work dir, TTS and STT settings, cost so far |
 | `/tts on\|off` | toggle spoken replies for this chat |
-| `/brief on\|off` | reply with the one-line summary only, as text, no audio. See [Hands-free with AirPods](#hands-free-with-airpods) |
+| `/brief on\|off` | reply in plain spoken prose only: one short text message plus the same text as a voice bubble. See [Hands-free with AirPods](#hands-free-with-airpods) |
 | `/lang zh\|en\|ja\|auto` | recognition language for this chat |
 | `/cd <path>` | change work dir (resets the session) |
 | `/cancel` | kill the running Claude task |
@@ -126,8 +126,8 @@ system can do the whole loop for you, no audio files involved:
    Announce Messages with Siri. With the phone locked and AirPods in, Siri
    reads every incoming message from the bot aloud and offers to reply.
 2. **Keep them short.** Send `/brief on` to the bot. From then on each reply
-   is a single short text message (the spoken summary), which is what you want
-   read into your ear. `/brief off` restores full replies plus audio.
+   is one short spoken-prose text message (what Siri reads into your ear) plus
+   the same text as a voice bubble. `/brief off` restores full replies.
 3. **Send by voice.** Add a contact for the bot so Siri can address it:
    Contacts → new contact → name it something short like "Claude" → add url →
    set the label to `Telegram` → value `https://t.me/@oid<PEER_ID>` where
@@ -199,7 +199,7 @@ pip install --user edge-tts       # 可选，语音回复用
 Telegram 不会自动播放 bot 发的音频，但 iPhone 配 AirPods 可以让系统把整个循环包掉，完全不碰手机：
 
 1. **听回复**：iOS 设置 → 通知 → 通过 Siri 播报通知 → 打开并允许 Telegram；Telegram 里 设置 → 通知和声音 → 用 Siri 播报消息。锁屏戴着 AirPods 时，bot 的每条消息 Siri 都会读出来，并问你要不要回复。
-2. **让回复短一点**：给 bot 发 `/brief on`，之后每次只回一条短文字（就是口播摘要），Siri 念的就是这一句。`/brief off` 恢复完整回复加语音。
+2. **让回复短一点**：给 bot 发 `/brief on`，之后每次回复都是一段口语化短文字（Siri 念的就是它）再加同样内容的语音气泡。`/brief off` 恢复完整回复。
 3. **用 Siri 发消息**：通讯录新建联系人，名字起短一点比如"Claude"，添加 URL，标签改成 `Telegram`，内容填 `https://t.me/@oid<PEER_ID>`，PEER_ID 是 bot token 冒号前面那串数字。然后说"嘿 Siri，用 Telegram 给 Claude 发消息"，直接口述。这条路走的是 Siri 自己的听写，连 Groq 都不经过。
 
 ### 口播摘要
