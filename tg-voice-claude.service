@@ -1,0 +1,20 @@
+[Unit]
+Description=tg-voice-claude: Telegram voice bridge to Claude Code
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=%i
+Environment=HOME=/home/%i
+Environment=PATH=/home/%i/.local/bin:/usr/local/bin:/usr/bin:/bin
+WorkingDirectory=/home/%i/tg-voice-claude
+ExecStart=/usr/bin/python3 /home/%i/tg-voice-claude/bot.py
+Restart=always
+RestartSec=5
+MemoryHigh=500M
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,25 @@
+{
+  "bot_token": "123456789:AAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "groq_api_key": "gsk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "allowed_users": [123456789],
+
+  "work_dir": "~/Code",
+  "permission_mode": "acceptEdits",
+  "model": "",
+  "timeout_seconds": 900,
+  "claude_extra_args": [],
+  "claude_lock_file": "",
+
+  "reply_language": "Chinese",
+
+  "stt_model": "whisper-large-v3-turbo",
+  "stt_language": "zh",
+  "stt_translate": false,
+
+  "tts_enabled": true,
+  "tts_voice": "zh-CN-XiaoxiaoNeural",
+  "tts_rate": "+0%",
+  "tts_max_chars": 400,
+  "ffmpeg_bin": "ffmpeg",
+  "echo_transcript": true
+}
