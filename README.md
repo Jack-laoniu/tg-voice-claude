@@ -71,6 +71,9 @@ Edit `config.json`:
 | `tts_format` | `video_note` (default in the example): a round video message with a waveform, which Telegram **autoplays with sound**. `voice`: a normal voice bubble, tap to play. Both need ffmpeg |
 | `echo_transcript` | send the recognised text back before running Claude |
 | `brief_default` | start every chat in brief mode (`/brief` toggles it per chat) |
+| `spoken_max_chars` | length Claude is asked to keep the spoken line under in normal mode (80) |
+| `brief_max_chars` | same in brief mode (300): the spoken line is the whole reply there, so it gets room for a couple of options and a question back |
+| `brief_style` | extra instruction for brief mode; default asks Claude to talk like a thinking partner: point, two or three directions, one question back |
 
 Run it:
 

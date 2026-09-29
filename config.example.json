@@ -23,5 +23,7 @@
   "tts_format": "video_note",
   "ffmpeg_bin": "ffmpeg",
   "echo_transcript": true,
-  "brief_default": false
+  "brief_default": false,
+  "spoken_max_chars": 80,
+  "brief_max_chars": 300
 }

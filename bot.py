@@ -51,8 +51,13 @@ SPEAK_INSTRUCTION = (
     "You are being driven by voice from a phone. Keep answers concise. "
     "Reply in {lang}. At the very end of EVERY reply add one separate line "
     "that starts with \"{mark}\" followed by a spoken-style summary of your "
-    "answer in {lang}, at most 80 characters, no markdown, no code, no URLs. "
-    "That line is read aloud to the user."
+    "answer in {lang}, at most {limit} characters, no markdown, no code, "
+    "no URLs. That line is read aloud to the user.{extra}"
+)
+BRIEF_STYLE_DEFAULT = (
+    "The user only hears the spoken line, nothing else. Write it like a "
+    "thinking partner talking: state the point, offer two or three concrete "
+    "directions, and end with one question back to the user."
 )
 
 
@@ -95,6 +100,9 @@ def load_config():
     # Made for iOS "Announce Messages with Siri" on AirPods: Siri reads every
     # incoming Telegram message aloud, so a short one is what you want.
     cfg.setdefault("brief_default", False)
+    cfg.setdefault("spoken_max_chars", 80)     # summary length in normal mode
+    cfg.setdefault("brief_max_chars", 300)     # summary length in brief mode
+    cfg.setdefault("brief_style", BRIEF_STYLE_DEFAULT)
     return cfg
 
 
@@ -352,10 +360,12 @@ class ClaudeRunner:
         env["PATH"] = os.path.expanduser("~/.local/bin") + ":" + env.get("PATH", "")
         return env
 
-    def run(self, prompt, session_id, workdir, on_wait=None):
+    def run(self, prompt, session_id, workdir, on_wait=None, brief=False):
         cfg = self.cfg
-        sys_prompt = SPEAK_INSTRUCTION.format(lang=cfg["reply_language"],
-                                              mark=SPEAK_MARK)
+        sys_prompt = SPEAK_INSTRUCTION.format(
+            lang=cfg["reply_language"], mark=SPEAK_MARK,
+            limit=cfg["brief_max_chars"] if brief else cfg["spoken_max_chars"],
+            extra=(" " + cfg["brief_style"]) if brief and cfg["brief_style"] else "")
         cmd = [cfg["claude_bin"], "-p", prompt,
                "--output-format", "json",
                "--permission-mode", cfg["permission_mode"],
@@ -595,7 +605,8 @@ class Bot:
             res = self.runner.run(
                 text, c["session_id"], c["workdir"],
                 on_wait=lambda: self.tg.send(
-                    chat_id, "waiting for another Claude task to finish..."))
+                    chat_id, "waiting for another Claude task to finish..."),
+                brief=bool(c["brief"]))
         finally:
             stop.set()
         elapsed = time.time() - started
